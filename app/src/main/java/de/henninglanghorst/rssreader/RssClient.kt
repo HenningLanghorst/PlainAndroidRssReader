@@ -1,6 +1,9 @@
 package de.henninglanghorst.rssreader
 
-import io.reactivex.*
+import io.reactivex.Flowable
+import io.reactivex.Maybe
+import io.reactivex.MaybeTransformer
+import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import org.simpleframework.xml.Attribute
@@ -9,7 +12,6 @@ import org.simpleframework.xml.ElementList
 import org.simpleframework.xml.Root
 import org.simpleframework.xml.core.Persister
 import java.io.IOException
-import java.net.HttpURLConnection
 import java.net.URL
 import java.text.DateFormat
 import java.text.SimpleDateFormat
@@ -21,14 +23,12 @@ object RssClient {
         override fun initialValue() = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss ZZZZ", Locale.US)
     }
 
-    fun loadRssFeeds(urls: List<String>): Single<List<FeedEntry>> {
-
-        return Flowable.fromIterable(urls)
-                .flatMap { loadRssFeedFromChannel(it).toFlowable() }
-                .flatMap { Flowable.fromIterable(it) }
-                .sorted { o1, o2 -> -o1.timestamp.compareTo(o2.timestamp) }
-                .toList()
-    }
+    fun loadRssFeeds(urls: List<String>): Single<List<FeedEntry>> =
+            Flowable.fromIterable(urls)
+                    .flatMap { loadRssFeedFromChannel(it).toFlowable() }
+                    .flatMap { Flowable.fromIterable(it) }
+                    .sorted { o1, o2 -> -o1.timestamp.compareTo(o2.timestamp) }
+                    .toList()
 
     private fun loadRssFeedFromChannel(url: String) =
             Maybe.fromCallable { getRssFeedOrNull(url) }
@@ -39,32 +39,20 @@ object RssClient {
     private fun getRssFeedOrNull(url: String) = URL(url).content()?.toRssFeed()
 
     private val RssFeed.feedEntries
-        get() = channel.items.map { item ->
+        get() = channel.items.map {
             FeedEntry(
                     channel = this.channel.title ?: "",
-                    title = item.title ?: "",
-                    description = item.description ?: "",
-                    timestamp = dateFormat.get().parse(item.pubDate!!)
+                    title = it.title ?: "",
+                    description = it.description ?: "",
+                    timestamp = dateFormat.get().parse(it.pubDate!!),
+                    url = it.link ?: ""
             )
         }
 
 
     private fun URL.content() =
-            openConnection()
-                    .let { it as HttpURLConnection }
-                    .apply { requestMethod = "GET" }
-                    .responseBody
-
-
-    private val HttpURLConnection.responseBody: String?
-        get() =
             try {
-                inputStream.use {
-                    it.reader(charset("UTF-8"))
-                            .readLines()
-                            .joinToString(System.lineSeparator())
-                }
-
+                openStream().bufferedReader().lineSequence().joinToString(System.lineSeparator())
             } catch (e: IOException) {
                 null
             }
