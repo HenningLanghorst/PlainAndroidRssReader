@@ -1,25 +1,21 @@
 package de.henninglanghorst.rssreader
 
-import android.content.Context
-import android.util.Log
 import android.widget.Toast
 import io.reactivex.Flowable
 import io.reactivex.schedulers.Schedulers
+import org.joda.time.format.ISODateTimeFormat
 import org.xml.sax.Attributes
 import org.xml.sax.InputSource
 import org.xml.sax.helpers.DefaultHandler
 import java.io.InputStream
 import java.net.URL
-import java.text.ParseException
-import java.text.SimpleDateFormat
 import java.util.*
 import javax.xml.parsers.SAXParserFactory
 
 
-class RssClient(private val handleError: (Throwable) -> Unit) {
+class AtomClient(private val handleError: (Throwable) -> Unit) {
 
-
-    fun loadRssFeeds(urls: List<String>) =
+    fun loadAtomFeeds(urls: List<String>) =
             Flowable.fromIterable(urls)
                     .flatMap { feedEntriesFrom(it) }
 
@@ -34,9 +30,9 @@ class RssClient(private val handleError: (Throwable) -> Unit) {
 
 
     private fun parseRssFrom(inputStream: InputStream) =
-            RssHandler().also { rssHandler ->
+            AtomHandler().also { handler ->
                 SAXParserFactory.newInstance().newSAXParser().xmlReader.apply {
-                    contentHandler = rssHandler
+                    contentHandler = handler
                     setFeature("http://xml.org/sax/features/namespaces", true)
                     setFeature("http://xml.org/sax/features/validation", false)
                     parse(InputSource(inputStream))
@@ -46,9 +42,9 @@ class RssClient(private val handleError: (Throwable) -> Unit) {
 
 }
 
-private class RssHandler : DefaultHandler() {
+private class AtomHandler : DefaultHandler() {
 
-    private val dateFormat = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss ZZZZ", Locale.US)
+    private val dateFormat = ISODateTimeFormat.dateTimeNoMillis()
 
     private val stack: Deque<String> = LinkedList<String>()
     val title: StringBuilder = StringBuilder()
@@ -58,15 +54,17 @@ private class RssHandler : DefaultHandler() {
 
     override fun startElement(uri: String, localName: String, qName: String, attributes: Attributes) {
         stack.offerLast(localName)
-        if (localName == "item") {
+        if (stack.joinToString("/") == "feed/entry") {
             currentItem = Item()
+        } else if (stack.joinToString("/") == "feed/entry/link") {
+            currentItem!!.link.append(attributes.getValue("href"))
         }
     }
 
     override fun endElement(uri: String?, localName: String?, qName: String?) {
         stack.removeLast()
 
-        if (localName == "item") {
+        if (localName == "entry") {
             items.add(currentItem ?: throw NoSuchElementException("current item is null"))
             currentItem = null
         }
@@ -76,13 +74,13 @@ private class RssHandler : DefaultHandler() {
         val message = String(ch, start, length).trim()
 
         when (stack.joinToString("/")) {
-            "rss/channel/title" -> title.append(message)
-            "rss/channel/item/title" -> currentItem!!.title.append(message)
-            "rss/channel/item/link" -> currentItem!!.link.append(message)
-            "rss/channel/item/description" -> currentItem!!.description.append(message)
-            "rss/channel/item/pubDate" -> currentItem!!.pubDate.append(message)
+            "feed/title" -> title.append(message)
+            "feed/entry/title" -> currentItem!!.title.append(message)
+            "feed/entry/summary" -> currentItem!!.description.append(message)
+            "feed/entry/updated" -> currentItem!!.pubDate.append(message)
         }
     }
+
 
     val feedEntries: List<FeedEntry>
         get () = items.map {
@@ -90,23 +88,18 @@ private class RssHandler : DefaultHandler() {
                     channel = title.toString(),
                     title = it.title.toString(),
                     url = it.link.toString(),
-                    timestamp = try {
-                        dateFormat.parse(it.pubDate.toString())
-                    } catch (e: ParseException) {
-                        Log.e("Wrong date format", "channel=$title title=${it.title}", e)
-                        Date()
-                    },
+                    timestamp = dateFormat.parseDateTime(it.pubDate.toString()).toDate(),
                     description = it.description.toString()
             )
         }
 
+    private data class Item(
+            val title: StringBuilder = StringBuilder(),
+            val description: StringBuilder = StringBuilder(),
+            val pubDate: StringBuilder = StringBuilder(),
+            val link: StringBuilder = StringBuilder()
+
+    )
+
 }
 
-
-private data class Item(
-        val title: StringBuilder = StringBuilder(),
-        val description: StringBuilder = StringBuilder(),
-        val pubDate: StringBuilder = StringBuilder(),
-        val link: StringBuilder = StringBuilder()
-
-)

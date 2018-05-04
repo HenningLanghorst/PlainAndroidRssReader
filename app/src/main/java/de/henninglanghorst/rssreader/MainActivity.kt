@@ -10,11 +10,13 @@ import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
 import android.text.Html
 import android.text.Spanned
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import de.henninglanghorst.rssreader.RssClient.loadRssFeeds
+import android.widget.Toast
+import io.reactivex.Flowable
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
@@ -25,11 +27,19 @@ import java.util.*
 
 
 class MainActivity : AppCompatActivity() {
-    val feedUrls = listOf(
+
+
+    private val rssClient = RssClient(this::handleError)
+    private val atomClient = AtomClient(this::handleError)
+
+    private val rssUrls = listOf(
             "https://www.tagesschau.de/xml/rss2",
             "http://newsfeed.zeit.de/index",
             "http://www.spiegel.de/schlagzeilen/tops/index.rss"
     )
+    private val atomUrls = listOf(
+            "https://www.heise.de/newsticker/heise-atom.xml",
+            "https://rss.golem.de/rss.php?feed=ATOM1.0")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,8 +59,22 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    private fun handleError(t: Throwable) {
+        Log.e("RSSReader", "Error loading feed.", t)
+        Toast.makeText(applicationContext, t.localizedMessage, Toast.LENGTH_LONG).show()
+    }
+
     private fun update() {
-        loadRssFeeds(feedUrls).subscribe { feedEntries ->
+        val rssFeeds = rssClient.loadRssFeeds(rssUrls)
+        val atomFeeds = atomClient.loadAtomFeeds(atomUrls)
+
+        val allFeeds = Flowable.just(rssFeeds, atomFeeds).flatMap { it }.sorted { o1, o2 -> -o1.timestamp.compareTo(o2.timestamp) }
+                .toList()
+                .observeOn(AndroidSchedulers.mainThread())
+
+
+
+        allFeeds.subscribe { feedEntries ->
             feeds.adapter = FeedAdapter(feedEntries)
             swipe_container.isRefreshing = false
         }
