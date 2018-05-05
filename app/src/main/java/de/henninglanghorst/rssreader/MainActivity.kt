@@ -10,12 +10,10 @@ import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
 import android.text.Html
 import android.text.Spanned
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import android.widget.Toast
 import io.reactivex.Flowable
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -29,23 +27,17 @@ import java.util.*
 class MainActivity : AppCompatActivity() {
 
 
-    private val rssClient = RssClient(this::handleError)
-    private val atomClient = AtomClient(this::handleError)
-
-    private val rssUrls = listOf(
+    private val urls = listOf(
             "https://www.tagesschau.de/xml/rss2",
             "http://newsfeed.zeit.de/index",
-            "http://www.spiegel.de/schlagzeilen/tops/index.rss"
-    )
-    private val atomUrls = listOf(
+            "http://www.spiegel.de/schlagzeilen/tops/index.rss",
             "https://www.heise.de/newsticker/heise-atom.xml",
-            "https://rss.golem.de/rss.php?feed=ATOM1.0")
+            "https://rss.golem.de/rss.php?feed=ATOM1.0"
+    ).map { URL(it) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-
         swipe_container.setOnRefreshListener {
             swipe_container.isRefreshing = true
             update()
@@ -55,29 +47,22 @@ class MainActivity : AppCompatActivity() {
         feeds.adapter = FeedAdapter()
 
         update()
-
-
     }
 
-    private fun handleError(t: Throwable) {
-        Log.e("RSSReader", "Error loading feed.", t)
-        Toast.makeText(applicationContext, t.localizedMessage, Toast.LENGTH_LONG).show()
-    }
 
     private fun update() {
-        val rssFeeds = rssClient.loadRssFeeds(rssUrls)
-        val atomFeeds = atomClient.loadAtomFeeds(atomUrls)
 
-        val allFeeds = Flowable.just(rssFeeds, atomFeeds).flatMap { it }.sorted { o1, o2 -> -o1.timestamp.compareTo(o2.timestamp) }
+        val xmlData = urls.data.flattenAsFlowable { it }.cache()
+        val atomFeeds = xmlData.flatMap { (it parsedWith ::AtomHandler) }
+        val rssEntries = xmlData.flatMap { (it parsedWith ::RssHandler) }
+
+        Flowable.concat(atomFeeds, rssEntries)
+                .sorted { o1, o2 -> -o1.timestamp.compareTo(o2.timestamp) }
                 .toList()
-                .observeOn(AndroidSchedulers.mainThread())
-
-
-
-        allFeeds.subscribe { feedEntries ->
-            feeds.adapter = FeedAdapter(feedEntries)
-            swipe_container.isRefreshing = false
-        }
+                .observeOn(AndroidSchedulers.mainThread()).subscribe { feedEntries ->
+                    feeds.adapter = FeedAdapter(feedEntries)
+                    swipe_container.isRefreshing = false
+                }
     }
 
 }
@@ -111,6 +96,7 @@ class FeedAdapter(private val feedEntries: List<FeedEntry> = emptyList()) : Recy
         }
     }
 
+    @Suppress("DEPRECATION")
     private val String.spanned: Single<Spanned>
         get () = Single.defer { Single.just(Html.fromHtml(this, imageGetter, null)) }
                 .subscribeOn(Schedulers.io())
@@ -124,10 +110,3 @@ data class FeedViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
 
 }
 
-data class FeedEntry(
-        val channel: String,
-        val title: String,
-        val description: String,
-        val timestamp: Date,
-        val url: String
-)
