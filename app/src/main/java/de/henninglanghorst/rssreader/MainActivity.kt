@@ -1,5 +1,6 @@
 package de.henninglanghorst.rssreader
 
+import android.arch.persistence.room.Room
 import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.net.Uri
@@ -26,17 +27,28 @@ import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
+    private val feedDatabase: FeedDatabase by lazy { Room.databaseBuilder(applicationContext, FeedDatabase::class.java, "feed.db").build() }
 
-    private val urls = listOf(
+    private val initialUrls = listOf(
             "https://www.tagesschau.de/xml/rss2",
             "http://newsfeed.zeit.de/index",
             "http://www.spiegel.de/schlagzeilen/tops/index.rss",
             "https://www.heise.de/newsticker/heise-atom.xml",
             "https://rss.golem.de/rss.php?feed=ATOM1.0"
-    ).map { URL(it) }
+    ).map { Feed(url = it) }
+
+    private val urls get() = Single.fromCallable { feedDatabase.feedDao.getAll().map { URL(it.url) } }.subscribeOn(Schedulers.io())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+
+        Flowable.fromCallable {
+            if (feedDatabase.feedDao.getAll().isEmpty()) {
+                initialUrls.forEach { feedDatabase.feedDao.insert(it) }
+            }
+        }.subscribeOn(Schedulers.io()).subscribe()
+
         setContentView(R.layout.activity_main)
         swipe_container.setOnRefreshListener {
             swipe_container.isRefreshing = true
@@ -52,7 +64,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun update() {
 
-        val xmlData = urls.data.flattenAsFlowable { it }.cache()
+        val xmlData = urls.flatMap { it.data }.flattenAsFlowable { it }.cache()
         val atomFeeds = xmlData.flatMap { (it parsedWith ::AtomHandler) }
         val rssEntries = xmlData.flatMap { (it parsedWith ::RssHandler) }
 
