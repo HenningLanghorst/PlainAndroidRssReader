@@ -1,39 +1,35 @@
-package de.henninglanghorst.rssreader
+package de.henninglanghorst.rssreader.feed
 
-import android.util.Log
+import org.joda.time.format.ISODateTimeFormat
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
-import java.text.ParseException
-import java.text.SimpleDateFormat
 import java.util.*
 
-class RssHandler : DefaultHandler(), FeedHandler {
+class AtomHandler : DefaultHandler(), FeedHandler {
 
-    private val dateFormat = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss ZZZZ", Locale.US)
+    private val dateFormat = ISODateTimeFormat.dateTimeNoMillis()
+
     private val stack: Deque<String> = LinkedList<String>()
     private val title: StringBuilder = StringBuilder()
     private val items: MutableList<Item> = mutableListOf()
 
     private var currentItem: Item? = null
-    private var addCurrentItem: () -> Unit = {}
+    private var isAtom = false
 
     override fun startElement(uri: String, localName: String, qName: String, attributes: Attributes) {
         stack.offerLast(localName)
         when (stack.joinToString("/")) {
-            "rss" -> {
-                addCurrentItem = {
-                    items.add(currentItem ?: throw NoSuchElementException("current item is null"))
-                }
-            }
-            "rss/channel/item" -> currentItem = Item()
+            "feed" -> isAtom = true
+            "feed/entry" -> currentItem = Item()
+            "feed/entry/link" -> currentItem!!.link.append(attributes.getValue("href"))
         }
     }
 
     override fun endElement(uri: String?, localName: String?, qName: String?) {
         stack.removeLast()
 
-        if (localName == "item") {
-            addCurrentItem()
+        if (isAtom && localName == "entry") {
+            items.add(currentItem ?: throw NoSuchElementException("current item is null"))
             currentItem = null
         }
     }
@@ -42,13 +38,13 @@ class RssHandler : DefaultHandler(), FeedHandler {
         val message = String(ch, start, length)
 
         when (stack.joinToString("/")) {
-            "rss/channel/title" -> title.append(message)
-            "rss/channel/item/title" -> currentItem!!.title.append(message)
-            "rss/channel/item/link" -> currentItem!!.link.append(message)
-            "rss/channel/item/description" -> currentItem!!.description.append(message)
-            "rss/channel/item/pubDate" -> currentItem!!.pubDate.append(message)
+            "feed/title" -> title.append(message)
+            "feed/entry/title" -> currentItem!!.title.append(message)
+            "feed/entry/summary" -> currentItem!!.description.append(message)
+            "feed/entry/updated" -> currentItem!!.pubDate.append(message)
         }
     }
+
 
     override val feedEntries: List<FeedEntry>
         get () = items.map {
@@ -56,12 +52,7 @@ class RssHandler : DefaultHandler(), FeedHandler {
                     channel = title.toString(),
                     title = it.title.toString(),
                     url = it.link.toString(),
-                    timestamp = try {
-                        dateFormat.parse(it.pubDate.toString())
-                    } catch (e: ParseException) {
-                        Log.e("Wrong date format", "channel=$title title=${it.title}", e)
-                        Date()
-                    },
+                    timestamp = dateFormat.parseDateTime(it.pubDate.toString()).toDate(),
                     description = it.description.toString()
             )
         }
@@ -73,4 +64,5 @@ class RssHandler : DefaultHandler(), FeedHandler {
             val link: StringBuilder = StringBuilder()
 
     )
+
 }

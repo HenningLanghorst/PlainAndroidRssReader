@@ -15,6 +15,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import de.henninglanghorst.rssreader.db.Feed
+import de.henninglanghorst.rssreader.db.FeedDatabase
+import de.henninglanghorst.rssreader.feed.AtomHandler
+import de.henninglanghorst.rssreader.feed.FeedEntry
+import de.henninglanghorst.rssreader.feed.RssHandler
+import de.henninglanghorst.rssreader.util.data
+import de.henninglanghorst.rssreader.util.parsedWith
 import io.reactivex.Flowable
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers

@@ -1,4 +1,4 @@
-package de.henninglanghorst.rssreader
+package de.henninglanghorst.rssreader.feed
 
 import org.xml.sax.ContentHandler
 

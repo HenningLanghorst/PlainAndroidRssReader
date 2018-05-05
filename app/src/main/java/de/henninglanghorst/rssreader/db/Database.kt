@@ -1,8 +1,7 @@
-package de.henninglanghorst.rssreader
+package de.henninglanghorst.rssreader.db
 
 import android.arch.persistence.room.*
 import android.arch.persistence.room.OnConflictStrategy.REPLACE
-import android.content.Context
 
 @Entity(tableName = "FEED")
 data class Feed(

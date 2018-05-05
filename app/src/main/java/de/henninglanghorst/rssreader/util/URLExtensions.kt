@@ -1,4 +1,4 @@
-package de.henninglanghorst.rssreader
+package de.henninglanghorst.rssreader.util
 
 import io.reactivex.Flowable
 import io.reactivex.Single

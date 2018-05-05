@@ -1,10 +1,11 @@
-package de.henninglanghorst.rssreader
+package de.henninglanghorst.rssreader.util
 
 import android.util.Log
+import de.henninglanghorst.rssreader.feed.FeedEntry
+import de.henninglanghorst.rssreader.feed.FeedHandler
 import io.reactivex.Flowable
 import io.reactivex.Single
 import io.reactivex.schedulers.Schedulers
-import org.intellij.lang.annotations.Flow
 import org.xml.sax.InputSource
 import org.xml.sax.XMLReader
 import java.io.StringReader
