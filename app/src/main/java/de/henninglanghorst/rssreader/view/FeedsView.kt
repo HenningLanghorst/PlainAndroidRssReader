@@ -22,11 +22,6 @@ class FeedsView(private val onUpdateViewState: (ViewState) -> Unit,
                 private val feedDao: FeedDao,
                 private val context: Context) {
 
-    private val imageGetter: Html.ImageGetter get() = Html.ImageGetter { this.loadImage(it) }
-
-    private fun loadImage(source: String?) = Drawable.createFromStream(URL(source).openStream(), source)?.apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }
-
-
     private val urls
         get() = Single.fromCallable { feedDao.getAll().map { URL(it.url) } }
                 .flattenAsFlowable { it }
@@ -40,7 +35,6 @@ class FeedsView(private val onUpdateViewState: (ViewState) -> Unit,
                     .subscribe { result -> onUpdateViewState(result) }
         }
     }
-
 
     private val Flowable<FeedResult>.errors
         get() = filter { it is FeedError }.map { it as FeedError }

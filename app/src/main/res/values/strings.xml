@@ -4,4 +4,10 @@
     <string name="unknown_host">Host name could not be resolved: %s</string>
     <string name="connect_error">Connection error when connecting to %s</string>
     <string name="feed_error">Error loading feed: %s</string>
+    <string name="settings">Settings</string>
+    <string name="delete">Delete</string>
+    <string name="url_copied_to_clipboard">URL has been copied to clipboard.</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="add_new_feed_item">Add new item</string>
 </resources>

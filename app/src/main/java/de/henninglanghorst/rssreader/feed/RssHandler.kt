@@ -12,10 +12,12 @@ class RssHandler : DefaultHandler(), FeedHandler {
     private val dateFormat = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss ZZZZ", Locale.US)
     private val stack: Deque<String> = LinkedList<String>()
     private val title: StringBuilder = StringBuilder()
+    private val description: StringBuilder = StringBuilder()
     private val items: MutableList<Item> = mutableListOf()
 
     private var currentItem: Item? = null
     private var addCurrentItem: () -> Unit = {}
+    private var createFeedDescription: () -> FeedDescription? = { null }
 
     override fun startElement(uri: String, localName: String, qName: String, attributes: Attributes) {
         stack.offerLast(localName)
@@ -24,6 +26,7 @@ class RssHandler : DefaultHandler(), FeedHandler {
                 addCurrentItem = {
                     items.add(currentItem ?: throw NoSuchElementException("current item is null"))
                 }
+                createFeedDescription = { FeedDescription(title.toString(), HtmlAdapter.fromHtml(description.toString())) }
             }
             "rss/channel/item" -> currentItem = Item()
         }
@@ -43,6 +46,7 @@ class RssHandler : DefaultHandler(), FeedHandler {
 
         when (stack.joinToString("/")) {
             "rss/channel/title" -> title.append(message)
+            "rss/channel/description" -> description.append(message)
             "rss/channel/item/title" -> currentItem!!.title.append(message)
             "rss/channel/item/link" -> currentItem!!.link.append(message)
             "rss/channel/item/description" -> currentItem!!.description.append(message)
@@ -65,6 +69,9 @@ class RssHandler : DefaultHandler(), FeedHandler {
                     description = HtmlAdapter.fromHtml(it.description.toString())
             )
         }
+
+    override val feedDescription: FeedDescription?
+        get() = createFeedDescription()
 
     private data class Item(
             val title: StringBuilder = StringBuilder(),

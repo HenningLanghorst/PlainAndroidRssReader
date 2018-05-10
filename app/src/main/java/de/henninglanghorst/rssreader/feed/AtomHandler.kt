@@ -12,6 +12,7 @@ class AtomHandler : DefaultHandler(), FeedHandler {
 
     private val stack: Deque<String> = LinkedList<String>()
     private val title: StringBuilder = StringBuilder()
+    private val subtitle: StringBuilder = StringBuilder()
     private val items: MutableList<Item> = mutableListOf()
 
     private var currentItem: Item? = null
@@ -40,6 +41,7 @@ class AtomHandler : DefaultHandler(), FeedHandler {
 
         when (stack.joinToString("/")) {
             "feed/title" -> title.append(message)
+            "feed/subtitle" -> subtitle.append(message)
             "feed/entry/title" -> currentItem!!.title.append(message)
             "feed/entry/summary" -> currentItem!!.summary.append(message)
             "feed/entry/updated" -> currentItem!!.updated.append(message)
@@ -57,6 +59,15 @@ class AtomHandler : DefaultHandler(), FeedHandler {
                     description = HtmlAdapter.fromHtml(it.summary.toString())
             )
         }
+
+    override val feedDescription: FeedDescription?
+        get() =
+            if (isAtom) {
+                FeedDescription(
+                        title = title.toString(),
+                        description = HtmlAdapter.fromHtml(subtitle.toString())
+                )
+            } else null
 
     private data class Item(
             val title: StringBuilder = StringBuilder(),

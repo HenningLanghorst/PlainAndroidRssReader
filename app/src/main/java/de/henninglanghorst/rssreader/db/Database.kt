@@ -3,6 +3,7 @@ package de.henninglanghorst.rssreader.db
 import android.arch.persistence.room.*
 import android.arch.persistence.room.OnConflictStrategy.REPLACE
 import android.content.Context
+import io.reactivex.Flowable
 
 @Entity(tableName = "FEED")
 data class Feed(
@@ -20,6 +21,8 @@ interface FeedDao {
     @Insert(onConflict = REPLACE)
     fun insert(feed: Feed)
 
+    @Delete
+    fun delete(feed: Feed)
 }
 
 
@@ -29,11 +32,16 @@ abstract class FeedDatabase : RoomDatabase() {
     abstract val feedDao: FeedDao
 
     companion object {
-        operator fun invoke(applicationContext: Context) =
-                Room.databaseBuilder(
-                        applicationContext,
-                        FeedDatabase::class.java,
-                        "feed.db").build()
+
+        private var instance: FeedDatabase? = null
+
+        operator fun invoke(applicationContext: Context): FeedDatabase =
+                synchronized(this) {
+                    if (instance == null) {
+                        instance = Room.databaseBuilder(applicationContext, FeedDatabase::class.java, "feed.db").build()
+                    }
+                    return instance!!
+                }
     }
 
 }

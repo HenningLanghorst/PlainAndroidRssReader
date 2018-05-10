@@ -4,4 +4,10 @@
     <string name="unknown_host">Host-Name konnte nicht aufgelöst werden: %s</string>
     <string name="connect_error">Verbindungsfehler beim Laden von %s</string>
     <string name="feed_error">Fehler beim Laden des Feeds: %s</string>
+    <string name="settings">Einstellungen</string>
+    <string name="delete">Löschen</string>
+    <string name="url_copied_to_clipboard">URL wurde in die Zwischenablage kopiert.</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Abbruch</string>
+    <string name="add_new_feed_item">Neuer Eintrag</string>
 </resources>
