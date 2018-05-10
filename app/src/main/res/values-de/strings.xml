@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">RSS Timeline</string>
+    <string name="date_time_pattern">dd.MM.YYYY HH:mm</string>
+    <string name="unknown_host">Host-Name konnte nicht aufgelöst werden: %s</string>
+    <string name="connect_error">Verbindungsfehler beim Laden von %s</string>
+    <string name="feed_error">Fehler beim Laden des Feeds: %s</string>
+</resources>

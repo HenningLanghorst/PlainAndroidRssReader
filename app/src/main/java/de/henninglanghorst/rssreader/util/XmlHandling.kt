@@ -12,22 +12,24 @@ import java.io.StringReader
 import javax.xml.parsers.SAXParserFactory
 
 
-infix fun XML.parsedWith(feedHandler: () -> FeedHandler): Flowable<FeedEntry> {
-    return Single.fromCallable {
-        feedHandler().also {
-            SAXParserFactory
-                    .newInstance()
-                    .newSAXParser()
-                    .xmlReader
-                    .configured(it)
-                    .parse(InputSource(StringReader(this.data)))
-        }.feedEntries
-    }
-            .subscribeOn(Schedulers.io())
-            .doOnError { Log.e("XmlHandling", "An error occured", it) }
-            .onErrorReturn { emptyList() }
-            .flattenAsFlowable { it }
-}
+infix fun FeedResult.parsedWith(feedHandler: () -> FeedHandler): Flowable<FeedEntry> =
+        when (this) {
+            is FeedContent -> Single.fromCallable {
+                feedHandler().also {
+                    SAXParserFactory
+                            .newInstance()
+                            .newSAXParser()
+                            .xmlReader
+                            .configured(it)
+                            .parse(InputSource(StringReader(this.data)))
+                }.feedEntries
+            }
+                    .subscribeOn(Schedulers.io())
+                    .doOnError { Log.e("XmlHandling", "An error occured", it) }
+                    .onErrorReturn { emptyList() }
+                    .flattenAsFlowable { it }
+            is FeedError -> Flowable.empty()
+        }
 
 private fun XMLReader.configured(feedHandler: FeedHandler) =
         this.apply {

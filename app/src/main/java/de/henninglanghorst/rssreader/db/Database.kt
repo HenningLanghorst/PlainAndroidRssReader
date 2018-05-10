@@ -2,6 +2,7 @@ package de.henninglanghorst.rssreader.db
 
 import android.arch.persistence.room.*
 import android.arch.persistence.room.OnConflictStrategy.REPLACE
+import android.content.Context
 
 @Entity(tableName = "FEED")
 data class Feed(
@@ -22,9 +23,17 @@ interface FeedDao {
 }
 
 
-@Database(entities = arrayOf(Feed::class), version = 1)
+@Database(entities = [(Feed::class)], version = 1)
 abstract class FeedDatabase : RoomDatabase() {
 
     abstract val feedDao: FeedDao
+
+    companion object {
+        operator fun invoke(applicationContext: Context) =
+                Room.databaseBuilder(
+                        applicationContext,
+                        FeedDatabase::class.java,
+                        "feed.db").build()
+    }
 
 }

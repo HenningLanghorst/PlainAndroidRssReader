@@ -62,7 +62,7 @@ class RssHandler : DefaultHandler(), FeedHandler {
                         Log.e("Wrong date format", "channel=$title title=${it.title}", e)
                         Date()
                     },
-                    description = it.description.toString()
+                    description = HtmlAdapter.fromHtml(it.description.toString())
             )
         }
 

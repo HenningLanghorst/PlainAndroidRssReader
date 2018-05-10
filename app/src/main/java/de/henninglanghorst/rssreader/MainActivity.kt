@@ -1,18 +1,20 @@
 package de.henninglanghorst.rssreader
 
-import android.arch.persistence.room.Room
 import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
 import android.support.v4.os.ConfigurationCompat
+import android.support.v4.widget.SwipeRefreshLayout
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
 import android.text.Html
 import android.text.Spanned
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
+import android.view.View.GONE
 import android.view.ViewGroup
 import android.widget.TextView
 import de.henninglanghorst.rssreader.db.Feed
@@ -20,8 +22,11 @@ import de.henninglanghorst.rssreader.db.FeedDatabase
 import de.henninglanghorst.rssreader.feed.AtomHandler
 import de.henninglanghorst.rssreader.feed.FeedEntry
 import de.henninglanghorst.rssreader.feed.RssHandler
-import de.henninglanghorst.rssreader.util.data
-import de.henninglanghorst.rssreader.util.parsedWith
+import de.henninglanghorst.rssreader.util.*
+import de.henninglanghorst.rssreader.view.FeedList
+import de.henninglanghorst.rssreader.view.FeedsView
+import de.henninglanghorst.rssreader.view.Loading
+import de.henninglanghorst.rssreader.view.ViewState
 import io.reactivex.Flowable
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -34,7 +39,9 @@ import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
-    private val feedDatabase: FeedDatabase by lazy { Room.databaseBuilder(applicationContext, FeedDatabase::class.java, "feed.db").build() }
+    val TAG = "MainActivity"
+
+    private val feedDatabase: FeedDatabase by lazy { FeedDatabase(applicationContext) }
 
     private val initialUrls = listOf(
             "https://www.tagesschau.de/xml/rss2",
@@ -44,11 +51,15 @@ class MainActivity : AppCompatActivity() {
             "https://rss.golem.de/rss.php?feed=ATOM1.0"
     ).map { Feed(url = it) }
 
-    private val urls get() = Single.fromCallable { feedDatabase.feedDao.getAll().map { URL(it.url) } }.subscribeOn(Schedulers.io())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
+        feeds.setHasFixedSize(true)
+        feeds.layoutManager = LinearLayoutManager(this)
+        feeds.adapter = FeedAdapter()
+        feeds.visibility = View.GONE
 
         Flowable.fromCallable {
             if (feedDatabase.feedDao.getAll().isEmpty()) {
@@ -56,32 +67,30 @@ class MainActivity : AppCompatActivity() {
             }
         }.subscribeOn(Schedulers.io()).subscribe()
 
-        setContentView(R.layout.activity_main)
-        swipe_container.setOnRefreshListener {
-            swipe_container.isRefreshing = true
-            update()
-        }
-        feeds.setHasFixedSize(true)
-        feeds.layoutManager = LinearLayoutManager(this)
-        feeds.adapter = FeedAdapter()
 
-        update()
+        val feedsView = FeedsView(this::updateState, feedDatabase.feedDao, this)
+
+        swipe_container.setOnRefreshListener { feedsView.update() }
+        feedsView.update()
+
     }
 
 
-    private fun update() {
+    private fun updateState(viewState: ViewState) =
+            when (viewState) {
+                is Loading -> onLoading()
+                is FeedList -> onFeedsLoaded(viewState)
+            }
 
-        val xmlData = urls.flatMap { it.data }.flattenAsFlowable { it }.cache()
-        val atomFeeds = xmlData.flatMap { (it parsedWith ::AtomHandler) }
-        val rssEntries = xmlData.flatMap { (it parsedWith ::RssHandler) }
+    private fun onLoading() {
+        swipe_container.isRefreshing = true
 
-        Flowable.concat(atomFeeds, rssEntries)
-                .sorted { o1, o2 -> -o1.timestamp.compareTo(o2.timestamp) }
-                .toList()
-                .observeOn(AndroidSchedulers.mainThread()).subscribe { feedEntries ->
-                    feeds.adapter = FeedAdapter(feedEntries)
-                    swipe_container.isRefreshing = false
-                }
+    }
+
+    private fun onFeedsLoaded(feedList: FeedList) {
+        feeds.visibility = View.VISIBLE
+        feeds.adapter = FeedAdapter(feedList.feeds)
+        swipe_container.isRefreshing = false
     }
 
 }
@@ -96,30 +105,16 @@ class FeedAdapter(private val feedEntries: List<FeedEntry> = emptyList()) : Recy
 
     override fun getItemCount() = feedEntries.size
 
-    private val imageGetter: Html.ImageGetter get() = Html.ImageGetter { this.loadImage(it) }
-
-    private fun loadImage(source: String?) = Drawable.createFromStream(URL(source).openStream(), source)?.apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }
-
     override fun onBindViewHolder(holder: FeedViewHolder, position: Int) {
         with(holder) {
             val feedEntry = feedEntries[position]
             view.findViewById<TextView>(R.id.feed_entry_channel).text = feedEntry.channel
             view.findViewById<TextView>(R.id.feed_entry_title).text = feedEntry.title
-            val description = feedEntry.description
-            view.findViewById<TextView>(R.id.feed_entry_description).text = Html.escapeHtml(description)
-
-            description.spanned.subscribe { html -> view.findViewById<TextView>(R.id.feed_entry_description).text = html }
-
+            view.findViewById<TextView>(R.id.feed_entry_description).text = feedEntry.description
             view.findViewById<TextView>(R.id.feed_entry_timestamp).text = holder.dateFormat.format(feedEntry.timestamp)
             view.setOnClickListener { view.context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(feedEntry.url))) }
         }
     }
-
-    @Suppress("DEPRECATION")
-    private val String.spanned: Single<Spanned>
-        get () = Single.defer { Single.just(Html.fromHtml(this, imageGetter, null)) }
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
 }
 
 
