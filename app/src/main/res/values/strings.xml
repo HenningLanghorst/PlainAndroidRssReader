@@ -12,4 +12,5 @@
     <string name="add_new_feed_item">Add new item</string>
     <string name="feed_item_deleted">Item deleted.</string>
     <string name="undo">Undo</string>
+    <string name="manage_feeds_info">You can add a new item by clicking (+) und delete one by swiping the item to the left.</string>
 </resources>

@@ -12,4 +12,5 @@
     <string name="add_new_feed_item">Neuer Eintrag</string>
     <string name="feed_item_deleted">Eintrag gelöscht</string>
     <string name="undo">Rückgängig</string>
+    <string name="manage_feeds_info">Ein neuer Eintrag kann dem (+) hinzugefügt werden. Zum Löschen bitte den entsprechenden Eintrag nach links wischen.</string>
 </resources>

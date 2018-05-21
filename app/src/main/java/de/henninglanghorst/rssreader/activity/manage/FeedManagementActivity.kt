@@ -8,6 +8,7 @@ import android.support.v7.widget.helper.ItemTouchHelper
 import android.text.InputType
 import android.view.View
 import android.widget.EditText
+import android.widget.Toast
 import de.henninglanghorst.rssreader.R
 import de.henninglanghorst.rssreader.db.Feed
 import de.henninglanghorst.rssreader.db.FeedDatabase
@@ -19,8 +20,12 @@ import kotlinx.android.synthetic.main.content_feed_management.*
 class FeedManagementActivity : AppCompatActivity() {
 
     private val feedDatabase by lazy { FeedDatabase(applicationContext) }
-    private val settingsFeedEntryAdapter by lazy { SettingsFeedEntryAdapter(feedDatabase.feedDao) }
+    private val settingsFeedEntryAdapter by lazy { SettingsFeedEntryAdapter(feedDatabase.feedDao, ::onDataLoaded) }
 
+    private fun onDataLoaded() {
+        action_add_feed.visibility = View.VISIBLE
+        Toast.makeText(this, R.string.manage_feeds_info, Toast.LENGTH_LONG).show()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,6 +34,7 @@ class FeedManagementActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
 
         action_add_feed.setOnClickListener { view -> view.addNewItem() }
+
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         settings_entry.setHasFixedSize(true)

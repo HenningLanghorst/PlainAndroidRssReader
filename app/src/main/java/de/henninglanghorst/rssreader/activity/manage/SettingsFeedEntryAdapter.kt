@@ -25,7 +25,7 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import java.net.URL
 
-class SettingsFeedEntryAdapter(private val feedDao: FeedDao) : RecyclerView.Adapter<SettingsFeedEntryViewHolder>() {
+class SettingsFeedEntryAdapter(private val feedDao: FeedDao, onDataLoaded: () -> Unit) : RecyclerView.Adapter<SettingsFeedEntryViewHolder>() {
 
     private val feedDescriptions: MutableList<Pair<Feed, FeedDescription>> = mutableListOf()
 
@@ -39,6 +39,7 @@ class SettingsFeedEntryAdapter(private val feedDao: FeedDao) : RecyclerView.Adap
                 .subscribe { result ->
                     feedDescriptions += result
                     notifyDataSetChanged()
+                    onDataLoaded()
                 }
 
     }
