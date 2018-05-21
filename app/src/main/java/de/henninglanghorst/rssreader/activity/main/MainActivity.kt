@@ -1,21 +1,17 @@
 package de.henninglanghorst.rssreader.activity.main
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.support.v4.os.ConfigurationCompat
+import android.os.PersistableBundle
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
 import android.util.Log
 import android.view.*
 import de.henninglanghorst.rssreader.R
 import de.henninglanghorst.rssreader.db.Feed
 import de.henninglanghorst.rssreader.db.FeedDatabase
-import de.henninglanghorst.rssreader.feed.FeedEntry
 import de.henninglanghorst.rssreader.activity.manage.FeedManagementActivity
-import de.henninglanghorst.rssreader.util.getValue
-import de.henninglanghorst.rssreader.util.setValue
+import de.henninglanghorst.rssreader.feed.FeedEntry
 import de.henninglanghorst.rssreader.view.FeedList
 import de.henninglanghorst.rssreader.view.FeedsView
 import de.henninglanghorst.rssreader.view.Loading
@@ -24,9 +20,7 @@ import io.reactivex.Flowable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_main.*
-import kotlinx.android.synthetic.main.layout_feed_entry.view.*
-import java.text.DateFormat
-import java.util.*
+import kotlin.collections.ArrayList
 
 
 class MainActivity : AppCompatActivity() {
@@ -58,25 +52,46 @@ class MainActivity : AppCompatActivity() {
                 else -> super.onOptionsItemSelected(item)
             }
 
+    override fun onSaveInstanceState(outState: Bundle?) {
+        Log.d(TAG, "onSaveInstanceState")
+        val feedAdapter = feeds.adapter as FeedAdapter
+        outState?.putParcelableArrayList("feedEntries", ArrayList(feedAdapter.feedEntries))
+
+        super.onSaveInstanceState(outState)
+
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        Log.d(TAG, "onCreate")
+        val feedEntries = savedInstanceState?.getParcelableArrayList<FeedEntry>("feedEntries")
+        Log.d(TAG, "feedEntries ${feedEntries?.size} item(s)")
+
+
         feeds.setHasFixedSize(true)
         feeds.layoutManager = LinearLayoutManager(this)
-        feeds.adapter = FeedAdapter()
         feeds.visibility = View.GONE
 
-        val feedsView = FeedsView(this::updateState, feedDatabase.feedDao, this)
+        val feedsView = FeedsView(
+                onUpdateViewState = this::updateState,
+                feedDao = feedDatabase.feedDao,
+                context = this
+        )
 
+        if (feedEntries != null) {
+            onFeedsLoaded(FeedList(feedEntries, emptyList()))
+        } else {
+            Flowable.fromCallable {
+                if (feedDatabase.feedDao.getAll().isEmpty()) {
+                    initialUrls.forEach { feedDatabase.feedDao.insert(it) }
+                }
+            }.subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe { feedsView.update() }
 
-        Flowable.fromCallable {
-            if (feedDatabase.feedDao.getAll().isEmpty()) {
-                initialUrls.forEach { feedDatabase.feedDao.insert(it) }
-            }
-        }.subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { feedsView.update() }
+        }
 
 
 
@@ -105,37 +120,4 @@ class MainActivity : AppCompatActivity() {
 
 }
 
-
-class FeedAdapter(val feedEntries: List<FeedEntry> = emptyList()) : RecyclerView.Adapter<FeedViewHolder>() {
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
-            FeedViewHolder(
-                    LayoutInflater.from(parent.context)
-                            .inflate(R.layout.layout_feed_entry, parent, false))
-
-    override fun getItemCount() = feedEntries.size
-
-    override fun onBindViewHolder(holder: FeedViewHolder, position: Int) {
-        with(holder) {
-            val feedEntry = feedEntries[position]
-            channel = feedEntry.channel
-            title = feedEntry.title
-            description = feedEntry.description
-            timestamp = holder.dateFormat.format(feedEntry.timestamp)
-            view.setOnClickListener { view.context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(feedEntry.url))) }
-        }
-    }
-}
-
-
-data class FeedViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
-    private val defaultLocale: Locale = ConfigurationCompat.getLocales(view.context.resources.configuration)[0]
-    val dateFormat: DateFormat = DateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.LONG, defaultLocale)
-
-    var channel by view.feed_entry_channel
-    var title by view.feed_entry_title
-    var description by view.feed_entry_description
-    var timestamp by view.feed_entry_timestamp
-
-}
 
