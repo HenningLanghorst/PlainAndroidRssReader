@@ -10,4 +10,6 @@
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>
     <string name="add_new_feed_item">Add new item</string>
+    <string name="feed_item_deleted">Item deleted.</string>
+    <string name="undo">Undo</string>
 </resources>

@@ -11,42 +11,33 @@ import android.widget.EditText
 import de.henninglanghorst.rssreader.R
 import de.henninglanghorst.rssreader.db.Feed
 import de.henninglanghorst.rssreader.db.FeedDatabase
-import de.henninglanghorst.rssreader.feed.AtomHandler
-import de.henninglanghorst.rssreader.feed.FeedDescription
-import de.henninglanghorst.rssreader.feed.RssHandler
-import de.henninglanghorst.rssreader.util.FeedResult
-import de.henninglanghorst.rssreader.util.data
-import de.henninglanghorst.rssreader.util.parseFeedDescriptionWith
 import de.henninglanghorst.rssreader.util.withDescription
-import io.reactivex.Maybe
-import io.reactivex.Single
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.schedulers.Schedulers
-import kotlinx.android.synthetic.main.activity_feed_administration.*
-import kotlinx.android.synthetic.main.content_settings.*
-import java.net.URL
+import kotlinx.android.synthetic.main.activity_feed_management.*
+import kotlinx.android.synthetic.main.content_feed_management.*
 
 
 class FeedManagementActivity : AppCompatActivity() {
 
     private val feedDatabase by lazy { FeedDatabase(applicationContext) }
-    private val settingsFeedEntryAdapter by lazy { SettingsFeedEntryAdapter(this, feedDatabase.feedDao) }
+    private val settingsFeedEntryAdapter by lazy { SettingsFeedEntryAdapter(feedDatabase.feedDao) }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        setContentView(R.layout.activity_feed_administration)
+        setContentView(R.layout.activity_feed_management)
         setSupportActionBar(toolbar)
 
-        fab.setOnClickListener { view -> view.addNewItem() }
+        action_add_feed.setOnClickListener { view -> view.addNewItem() }
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         settings_entry.setHasFixedSize(true)
         settings_entry.layoutManager = LinearLayoutManager(this)
         settings_entry.adapter = settingsFeedEntryAdapter
 
-        ItemTouchHelper(SwipeToDeleteCallback(this, settingsFeedEntryAdapter::removeAt))
+
+
+        ItemTouchHelper(SwipeToDeleteCallback(this) { settingsFeedEntryAdapter.removeAt(it, settings_entry) })
                 .attachToRecyclerView(settings_entry)
 
     }

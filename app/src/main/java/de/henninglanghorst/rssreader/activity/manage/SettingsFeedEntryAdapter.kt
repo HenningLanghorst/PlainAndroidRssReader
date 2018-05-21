@@ -3,9 +3,10 @@ package de.henninglanghorst.rssreader.activity.manage
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.support.design.widget.Snackbar
 import android.support.v7.widget.RecyclerView
-import android.util.Log
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import de.henninglanghorst.rssreader.R
@@ -17,13 +18,16 @@ import de.henninglanghorst.rssreader.feed.RssHandler
 import de.henninglanghorst.rssreader.util.FeedResult
 import de.henninglanghorst.rssreader.util.data
 import de.henninglanghorst.rssreader.util.parseFeedDescriptionWith
+import io.reactivex.Completable
 import io.reactivex.Maybe
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import java.net.URL
 
-class SettingsFeedEntryAdapter(context: Context, private val feedDao: FeedDao) : RecyclerView.Adapter<SettingsFeedEntryViewHolder>() {
+class SettingsFeedEntryAdapter(private val feedDao: FeedDao) : RecyclerView.Adapter<SettingsFeedEntryViewHolder>() {
+
+    private val feedDescriptions: MutableList<Pair<Feed, FeedDescription>> = mutableListOf()
 
     init {
         Single.fromCallable { feedDao.getAll() }
@@ -39,7 +43,17 @@ class SettingsFeedEntryAdapter(context: Context, private val feedDao: FeedDao) :
 
     }
 
-    private val feedDescriptions: MutableList<Pair<Feed, FeedDescription>> = mutableListOf()
+    private val Feed.withDescription get() = URL(url).data.feedDescription.map { this to it }
+
+    private val Single<FeedResult>.feedDescription
+        get(): Single<FeedDescription> = Maybe.merge(
+                flatMapMaybe { (it parseFeedDescriptionWith ::AtomHandler) },
+                flatMapMaybe { (it parseFeedDescriptionWith ::RssHandler) })
+                .first(FeedDescription.none)
+                .onErrorReturn { FeedDescription.none }
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
             SettingsFeedEntryViewHolder(
@@ -57,17 +71,6 @@ class SettingsFeedEntryAdapter(context: Context, private val feedDao: FeedDao) :
         }
     }
 
-    private val Feed.withDescription get() = URL(url).data.feedDescription.map { this to it }
-
-    private val Single<FeedResult>.feedDescription
-        get(): Single<FeedDescription> = Maybe.merge(
-                flatMapMaybe { (it parseFeedDescriptionWith ::AtomHandler) },
-                flatMapMaybe { (it parseFeedDescriptionWith ::RssHandler) })
-                .first(FeedDescription.none)
-                .onErrorReturn { FeedDescription.none }
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-
 
     private fun SettingsFeedEntryViewHolder.copyUrlToClipboard(): Boolean {
         val clipboardManager = view.context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -77,37 +80,46 @@ class SettingsFeedEntryAdapter(context: Context, private val feedDao: FeedDao) :
     }
 
     operator fun plusAssign(feedAndDescription: Pair<Feed, FeedDescription>) {
-        Single.just(feedAndDescription.first)
-                .subscribeOn(Schedulers.io())
-                .observeOn(Schedulers.io())
-                .doOnSuccess { feed -> feedDao.insert(feed) }
-                .observeOn(AndroidSchedulers.mainThread())
-                .ignoreElement().subscribe {
+        feedAndDescription.insert()
+                .subscribe {
                     this.feedDescriptions += feedAndDescription
                     notifyDataSetChanged()
                 }
-
-
     }
 
-    fun removeAt(index: Int) {
-        Single.just(feedDescriptions[index].first)
-                .observeOn(Schedulers.io())
-                .doOnSuccess { feed -> feedDao.delete(feed) }
-                .observeOn(AndroidSchedulers.mainThread())
-                .ignoreElement().subscribe {
+    private fun Pair<Feed, FeedDescription>.insert() =
+            Completable.fromAction { feedDao.insert(first) }
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+
+
+    fun removeAt(index: Int, view: View) {
+        val feedAndDescription = feedDescriptions[index]
+        feedAndDescription.delete()
+                .subscribe {
                     feedDescriptions.removeAt(index)
                     notifyItemRemoved(index)
+                    view.showUndoSnackbar(feedAndDescription, index)
+
                 }
+    }
 
+    private fun Pair<Feed, FeedDescription>.delete() =
+            Completable.fromAction { feedDao.delete(first) }
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+
+    private fun View.showUndoSnackbar(feedAndDescription: Pair<Feed, FeedDescription>, index: Int) =
+            Snackbar.make(this, R.string.feed_item_deleted, Snackbar.LENGTH_LONG)
+                    .setAction(R.string.undo) { feedAndDescription.restoreAt(index) }
+                    .show()
+
+    private fun Pair<Feed, FeedDescription>.restoreAt(index: Int) {
+        insert().subscribe {
+            feedDescriptions.add(index, this)
+            notifyDataSetChanged()
+        }
     }
 
 
-}
-
-class LoggingFeedDao(val delegate: FeedDao) : FeedDao by delegate {
-    override fun delete(feed: Feed) {
-        Log.d("FeedDao", "Delete feed")
-        delegate.delete(feed)
-    }
 }
