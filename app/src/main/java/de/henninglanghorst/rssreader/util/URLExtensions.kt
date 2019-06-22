@@ -2,14 +2,12 @@ package de.henninglanghorst.rssreader.util
 
 import android.util.Log
 import de.henninglanghorst.rssreader.R
-import de.henninglanghorst.rssreader.feed.AtomHandler
-import de.henninglanghorst.rssreader.feed.FeedHandler
-import de.henninglanghorst.rssreader.feed.RssHandler
 import io.reactivex.Flowable
-import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.IOException
 import java.io.InterruptedIOException
 import java.net.ConnectException
@@ -18,15 +16,17 @@ import java.net.UnknownHostException
 
 
 val URL.data: Single<FeedResult>
-    get() = Single.fromCallable<FeedResult> { feedResult }.subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).cache()
+    get() = Single.fromCallable { feedResult }.subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).cache()
 
-val URL.feedInfo
-    get() = data.map { feedResult ->
-        feedHandlers().map { feedResult parsedWith it }.filter { it is FeedResult }
-        feedResult parsedWith ::AtomHandler
-    }
 
-private fun feedHandlers() = Observable.just<() -> FeedHandler>(::AtomHandler, ::RssHandler)
+private val URL.rawData
+    get() = OkHttpClient.Builder()
+            .build()
+            .newCall(Request.Builder().url(this).get().build())
+            .execute()
+            .takeIf { it.isSuccessful }
+            ?.body()
+            ?.string()
 
 
 private val URL.feedResult: FeedResult

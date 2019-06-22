@@ -9,6 +9,7 @@ import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import org.xml.sax.InputSource
+import org.xml.sax.XMLReader
 import java.io.StringReader
 import java.net.URL
 import javax.xml.parsers.SAXParserFactory
@@ -54,7 +55,7 @@ infix fun FeedResult.parseFeedDescriptionWith(feedHandler: () -> FeedHandler): M
         }
 
 
-private val FeedHandler.xmlReader
+private val FeedHandler.xmlReader: XMLReader
     get() =
         SAXParserFactory
                 .newInstance()
