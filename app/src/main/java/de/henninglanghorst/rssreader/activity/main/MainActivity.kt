@@ -2,15 +2,17 @@ package de.henninglanghorst.rssreader.activity.main
 
 import android.content.Intent
 import android.os.Bundle
-import android.os.PersistableBundle
-import android.support.v7.app.AppCompatActivity
-import android.support.v7.widget.LinearLayoutManager
 import android.util.Log
-import android.view.*
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import de.henninglanghorst.rssreader.R
+import de.henninglanghorst.rssreader.activity.manage.FeedManagementActivity
 import de.henninglanghorst.rssreader.db.Feed
 import de.henninglanghorst.rssreader.db.FeedDatabase
-import de.henninglanghorst.rssreader.activity.manage.FeedManagementActivity
 import de.henninglanghorst.rssreader.feed.FeedEntry
 import de.henninglanghorst.rssreader.view.FeedList
 import de.henninglanghorst.rssreader.view.FeedsView
@@ -20,7 +22,6 @@ import io.reactivex.Flowable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_main.*
-import kotlin.collections.ArrayList
 
 
 class MainActivity : AppCompatActivity() {
@@ -52,7 +53,7 @@ class MainActivity : AppCompatActivity() {
                 else -> super.onOptionsItemSelected(item)
             }
 
-    override fun onSaveInstanceState(outState: Bundle?) {
+    override fun onSaveInstanceState(outState: Bundle) {
         Log.d(TAG, "onSaveInstanceState")
         val feedAdapter = feeds.adapter as FeedAdapter
         outState?.putParcelableArrayList("feedEntries", ArrayList(feedAdapter.feedEntries))

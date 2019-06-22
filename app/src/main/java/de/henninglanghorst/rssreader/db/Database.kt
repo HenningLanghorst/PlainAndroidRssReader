@@ -1,9 +1,8 @@
 package de.henninglanghorst.rssreader.db
 
-import android.arch.persistence.room.*
-import android.arch.persistence.room.OnConflictStrategy.REPLACE
 import android.content.Context
-import io.reactivex.Flowable
+import androidx.room.*
+import androidx.room.OnConflictStrategy.REPLACE
 
 @Entity(tableName = "FEED")
 data class Feed(

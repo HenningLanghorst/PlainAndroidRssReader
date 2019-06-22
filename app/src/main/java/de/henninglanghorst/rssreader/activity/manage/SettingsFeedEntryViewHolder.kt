@@ -1,7 +1,7 @@
 package de.henninglanghorst.rssreader.activity.manage
 
-import android.support.v7.widget.RecyclerView
 import android.view.View
+import androidx.recyclerview.widget.RecyclerView
 import de.henninglanghorst.rssreader.util.getValue
 import de.henninglanghorst.rssreader.util.setValue
 import kotlinx.android.synthetic.main.layout_settings_entry.view.*

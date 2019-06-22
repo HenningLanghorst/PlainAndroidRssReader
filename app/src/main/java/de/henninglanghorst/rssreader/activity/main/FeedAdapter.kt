@@ -2,9 +2,9 @@ package de.henninglanghorst.rssreader.activity.main
 
 import android.content.Intent
 import android.net.Uri
-import android.support.v7.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.recyclerview.widget.RecyclerView
 import de.henninglanghorst.rssreader.R
 import de.henninglanghorst.rssreader.feed.FeedEntry
 
