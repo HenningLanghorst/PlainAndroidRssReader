@@ -31,8 +31,8 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
 
     private val initialFeeds = listOf(
             "https://www.tagesschau.de/xml/rss2",
-            "http://newsfeed.zeit.de/index",
-            "http://www.spiegel.de/schlagzeilen/tops/index.rss",
+            "https://newsfeed.zeit.de/index",
+            "https://www.spiegel.de/schlagzeilen/tops/index.rss",
             "https://www.heise.de/newsticker/heise-atom.xml",
             "https://rss.golem.de/rss.php?feed=ATOM1.0"
     ).map { Feed(url = it) }
