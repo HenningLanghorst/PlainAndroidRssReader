@@ -19,6 +19,7 @@ import io.reactivex.schedulers.Schedulers
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.xml.sax.InputSource
+import java.io.IOException
 import java.io.StringReader
 import javax.xml.parsers.SAXParserFactory
 
@@ -92,15 +93,20 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
             return feeds
         }
 
-    private fun queryRawData(url: String) = okHttpClient.newCall(
-            Request.Builder()
-                    .url(url)
-                    .get()
-                    .build())
-            .execute()
-            .takeIf { it.isSuccessful }
-            ?.body()
-            ?.string()
+    private fun queryRawData(url: String) =
+            try {
+                okHttpClient.newCall(
+                        Request.Builder()
+                                .url(url)
+                                .get()
+                                .build())
+                        .execute()
+                        .takeIf { it.isSuccessful }
+                        ?.body()
+                        ?.string()
+            } catch (e: IOException) {
+                null
+            }
 
     private infix fun String.parseRawUsingHandler(feedHandler: FeedHandler): List<FeedEntry> {
         SAXParserFactory
